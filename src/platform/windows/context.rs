@@ -5,18 +5,18 @@ use std::ptr;
 use winapi::shared::windef::HWND;
 use winit;
 
+use Api;
 use ContextError;
 use CreationError;
 use GlAttributes;
 use GlRequest;
-use Api;
 use PixelFormat;
 use PixelFormatRequirements;
 
-use api::wgl::Context as WglContext;
-use api::egl::Context as EglContext;
-use api::egl::ffi::egl::Egl;
 use api::egl;
+use api::egl::ffi::egl::Egl;
+use api::egl::Context as EglContext;
+use api::wgl::Context as WglContext;
 use platform::RawHandle;
 
 unsafe impl Send for Context {}
@@ -35,8 +35,7 @@ impl Context {
         pf_reqs: &PixelFormatRequirements,
         gl_attr: &GlAttributes<&Self>,
         egl: Option<&Egl>,
-    ) -> Result<(winit::Window, Self), CreationError>
-    {
+    ) -> Result<(winit::Window, Self), CreationError> {
         let window = window_builder.build(events_loop)?;
         let gl_attr = gl_attr.clone().map_sharing(|ctxt| {
             match *ctxt {
@@ -50,17 +49,17 @@ impl Context {
             match gl_attr.version {
                 GlRequest::Specific(Api::OpenGlEs, (_major, _minor)) => {
                     if let Some(egl) = egl {
-                        if let Ok(c) =
-                               EglContext::new(egl.clone(),
-                                               &pf_reqs,
-                                               &gl_attr.clone().map_sharing(|_| unimplemented!()),
-                                               egl::NativeDisplay::Other(Some(ptr::null())))
-                            .and_then(|p| p.finish(w)) {
+                        if let Ok(c) = EglContext::new(
+                            egl.clone(),
+                            &pf_reqs,
+                            &gl_attr.clone().map_sharing(|_| unimplemented!()),
+                            egl::NativeDisplay::Other(Some(ptr::null())),
+                        ).and_then(|p| p.finish(w))
+                        {
                             Ok(Context::Egl(c))
                         } else {
                             WglContext::new(&pf_reqs, &gl_attr, w).map(Context::Wgl)
                         }
-
                     } else {
                         // falling back to WGL, which is always available
                         WglContext::new(&pf_reqs, &gl_attr, w).map(Context::Wgl)
@@ -73,7 +72,7 @@ impl Context {
     }
 
     #[inline]
-    pub fn resize(&self, _width: u32, _height: u32) {
+    pub fn resize(&self, _window: &winit::Window, _width: u32, _height: u32) {
         // Method is for API consistency.
     }
 
